@@ -1,0 +1,23 @@
+torch==2.8.0+cu128
+# Core application
+# Core application
+fastapi
+uvicorn
+
+# LangChain Framework
+langchain
+langchain-core
+langchain-community
+langchain-openai
+
+# For environment variables
+python-dotenv
+
+# LangChain Framework
+langchain
+langchain-core
+langchain-community
+langchain-openai
+
+# For environment variables
+python-dotenv
