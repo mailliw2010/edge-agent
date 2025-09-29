@@ -1,10 +1,10 @@
 # main.py
+import config.settings # 导入以确保环境变量被最先加载
 import time
 import json
 import os
-import config.settings # 导入以确保环境变量被最先加载
 from agents.building_env_agent import BuildingEnvAgent
-from tools.sensor_reader import SensorReaderTool
+from tools.sensor_reader import sensor_reader # 导入新的 sensor_reader 函数
 from tools.ac_control import ac_control
 from tools.light_control import light_control
 
@@ -21,11 +21,9 @@ def main_loop():
     4.  **展示结果**: 打印 Agent 的最终输出。
     """
     # 1. 初始化工具集
-    # 我们将所有使用 `@tool` 装饰的函数收集到一个列表中。
-    # AgentExecutor 将能够看到这些工具的描述，并决定何时调用它们。
-    sensor_reader_tool = SensorReaderTool(simulate=True)
+    # 现在所有工具都是统一的 @tool 函数格式。
     tools = [
-        sensor_reader_tool.execute,
+        sensor_reader,
         ac_control,
         light_control
     ]
@@ -52,7 +50,8 @@ def main_loop():
             # --- 感知阶段 ---
             # Agent 在做决策前，需要先了解当前的环境状态。
             print("🤖 [感知] 正在获取当前环境状态...")
-            environment_status = sensor_reader_tool.execute(device_id="all")
+            # 直接调用 sensor_reader 函数
+            environment_status = sensor_reader({"device_id": "all"})
             print(f"🤖 [感知] 环境状态获取完成: \n{json.dumps(environment_status, indent=2, ensure_ascii=False)}")
 
             # --- 决策与执行阶段 ---
