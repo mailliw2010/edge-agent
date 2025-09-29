@@ -1,0 +1,76 @@
+# Sample device configuration
+devices:
+  - device_id: "ac_living_room"
+    name: "客厅空调"
+    type: "air_conditioner"
+    location: "客厅"
+    interface:
+      type: "mqtt"
+      host: "localhost"
+      port: 1883
+      topic_prefix: "home/ac_living_room"
+    initial_settings:
+      target_temperature: 24.0
+      mode: "auto"
+      fan_speed: 2
+      
+  - device_id: "ac_bedroom"
+    name: "卧室空调"
+    type: "air_conditioner"
+    location: "卧室"
+    interface:
+      type: "http"
+      base_url: "http://192.168.1.100:8080"
+    initial_settings:
+      target_temperature: 23.0
+      mode: "cool"
+      fan_speed: 1
+      
+  - device_id: "sensor_outdoor"
+    name: "室外温度传感器"
+    type: "sensor"
+    location: "阳台"
+    sensor_type: "temperature"
+    unit: "°C"
+    interface:
+      type: "mqtt"
+      host: "localhost"
+      port: 1883
+      topic_prefix: "sensors/outdoor"
+
+# Policy rules
+policies:
+  - rule_id: "energy_saving_daytime"
+    name: "白天节能模式"
+    description: "白天高峰期自动调节温度以节能"
+    enabled: true
+    priority: 1
+    conditions:
+      - type: "time_range"
+        start_time: "09:00:00"
+        end_time: "17:00:00"
+      - type: "energy_consumption"
+        operator: ">="
+        value: 3.0
+    actions:
+      - type: "set_temperature"
+        temperature: 26.0
+      - type: "notification"
+        message: "已启用白天节能模式"
+        
+  - rule_id: "night_comfort"
+    name: "夜间舒适模式"
+    description: "夜间自动调节为舒适睡眠温度"
+    enabled: true
+    priority: 2
+    conditions:
+      - type: "time_range"
+        start_time: "22:00:00"
+        end_time: "06:00:00"
+    actions:
+      - type: "set_temperature"
+        temperature: 25.0
+      - type: "set_mode"
+        mode: "auto"
+      - type: "notification"
+        message: "已启用夜间舒适模式"
