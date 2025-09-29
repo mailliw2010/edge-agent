@@ -1,45 +1,48 @@
 # agents/building_env_agent.py
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
+from langchain_community.chat_models import ChatTongyi # 导入通义千问模型
 from langchain.agents import AgentExecutor, create_openai_tools_agent
 from typing import List, Any, Dict
 
 # --- Agent 核心组件初始化 ---
 
-# 1. 定义系统提示 (System Prompt)
+# 1. 定义系统提示 (System Prompt) - 已优化为中文
 # 这是 Agent 的“性格”和“指令手册”。它告诉 LLM 它的角色、目标、可用工具以及如何响应。
-# 这个提示的设计至关重要，直接影响 Agent 的行为和性能。
-# 我们明确指示它要主动感知环境，并根据感知结果和用户请求来做决策。
+# 针对中文环境和 Qwen 模型进行了优化。
 prompt_template = """
-你是一个名为 "BuildingEnvAgent" 的智能建筑环境管家。
-你的目标是：根据用户的指令和环境的实时状态，自主地维护一个舒适和节能的建筑环境。
+你是一个名为“智能楼宇管家”的AI Agent。
+你的核心任务是：根据用户的指令和环境的实时状态，自主地维护一个舒适、节能的建筑环境。
 
-可用工具：
-- 你可以使用 `sensor_reader` 工具来感知环境，比如读取温度、灯光状态等。
-- 你可以使用 `ac_control` 和 `light_control` 工具来控制设备。
+# 可用工具
+你掌握以下工具，并清楚它们的用途：
+- `sensor_reader`: 用于感知环境，可以读取温度、灯光状态等所有设备的实时数据。
+- `ac_control`: 用于控制空调，可以开启、关闭或设定温度。
+- `light_control`: 用于控制灯光，可以开启或关闭。
 
-决策流程：
-1.  **感知**：在做任何决策之前，首先使用 `sensor_reader` 工具获取当前的环境状态。
-2.  **思考**：结合你的感知结果和用户的最新请求，分析是否需要采取行动。
-3.  **行动**：如果需要，选择最合适的工具并调用它来完成任务。
+# 决策流程
+你必须严格遵循以下思考和行动的流程：
+1.  **感知环境**: 在做任何决策之前，必须先调用 `sensor_reader` 工具来全面了解当前的环境状态。
+2.  **分析思考**: 结合你刚刚感知到的环境状态和用户的最新指令，分析并判断是否需要采取行动。
+3.  **执行动作**: 如果需要行动，选择最合适的工具并调用它来完成任务。如果不需要，就明确地说明情况。
 
-当前环境状态：
+# 当前环境状态
 {environment_status}
 
-用户最新请求：
+# 用户最新指令
 {input}
 
+# 思考与行动历史
 {agent_scratchpad}
 """
 
 # 2. 创建聊天提示模板
-# ChatPromptTemplate 是 LangChain 中用于构建与聊天模型交互的标准化结构。
 prompt = ChatPromptTemplate.from_template(prompt_template)
 
-# 3. 初始化大语言模型 (LLM)
-# 我们选择使用 OpenAI 的 gpt-4-turbo 模型，因为它在工具调用方面表现出色。
-# temperature=0 表示我们希望模型做出确定性的、可重复的决策，而不是创造性的回答。
-llm = ChatOpenAI(model="gpt-4-turbo", temperature=0)
+# 3. 初始化大语言模型 (LLM) - 更换为通义千问
+# 我们选择使用阿里的通义千问 qwen-max 模型，它在中文处理和工具调用方面表现优异。
+# temperature=0 表示我们希望模型做出确定性的、可重复的决策。
+# 注意：用户提到的 qwen3-max 在API中通常标识为 qwen-max
+llm = ChatTongyi(model="qwen-max", temperature=0)
 
 
 class BuildingEnvAgent:
