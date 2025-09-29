@@ -2,11 +2,11 @@
 import time
 import json
 import os
+import config.settings # 导入以确保环境变量被最先加载
 from agents.building_env_agent import BuildingEnvAgent
 from tools.sensor_reader import SensorReaderTool
 from tools.ac_control import ac_control
 from tools.light_control import light_control
-import config.settings # 导入以确保环境变量被加载
 
 def main_loop():
     """

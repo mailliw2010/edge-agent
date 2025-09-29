@@ -1,23 +1,15 @@
 torch==2.8.0+cu128
-# Core application
+
 # Core application
 fastapi
 uvicorn
 
 # LangChain Framework
+# langchain 会自动安装 langchain-core 和 langchain-community
 langchain
-langchain-core
 langchain-community
-langchain-openai
+dashscope
 
 # For environment variables
 python-dotenv
 
-# LangChain Framework
-langchain
-langchain-core
-langchain-community
-langchain-openai
-
-# For environment variables
-python-dotenv
