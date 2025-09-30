@@ -2,8 +2,17 @@
 from langchain_core.tools import tool
 import os
 
+from core.reliability import (
+    OperationTimeoutError,
+    ResilienceError,
+    run_with_resilience,
+)
+
 # 模拟的设备文件系统路径
 _SIMULATED_SYS_PATH = "/tmp/edge_agent_sim/sys/"
+
+TOOL_TIMEOUT_SECONDS = float(os.getenv("TOOL_TIMEOUT_SECONDS", "5"))
+TOOL_MAX_ATTEMPTS = int(os.getenv("TOOL_MAX_ATTEMPTS", "3"))
 
 @tool
 def light_control(device_id: str, action: str) -> str:
@@ -26,20 +35,26 @@ def light_control(device_id: str, action: str) -> str:
 
     # --- 执行操作 ---
     # 通过写文件来模拟改变灯光的状态。
-    try:
-        status_file = os.path.join(light_path, "status")
-        
+    status_file = os.path.join(light_path, "status")
+
+    def _operate() -> str:
         if action == 'turn_on':
             with open(status_file, "w") as f:
                 f.write("on")
             return f"成功：灯光 '{device_id}' 已开启。"
-        
-        elif action == 'turn_off':
-            with open(status_file, "w") as f:
-                f.write("off")
-            return f"成功：灯光 '{device_id}' 已关闭。"
 
-    except Exception as e:
-        # --- 异常处理 ---
-        # 捕获并报告在与模拟硬件交互时发生的任何错误。
-        return f"错误：控制灯光 '{device_id}' 时发生异常: {e}"
+        # action == 'turn_off'
+        with open(status_file, "w") as f:
+            f.write("off")
+        return f"成功：灯光 '{device_id}' 已关闭。"
+
+    try:
+        return run_with_resilience(
+            "light_control",
+            _operate,
+            timeout_seconds=TOOL_TIMEOUT_SECONDS,
+            max_attempts=TOOL_MAX_ATTEMPTS,
+            retry_exceptions=(OSError, IOError, OperationTimeoutError),
+        )
+    except ResilienceError as exc:
+        return f"错误：控制灯光 '{device_id}' 时发生异常: {exc}"

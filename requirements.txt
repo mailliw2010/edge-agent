@@ -19,3 +19,9 @@ python-dotenv
 # Logging
 loguru
 
+# Retry logic
+tenacity
+
+# Testing
+pytest
+
