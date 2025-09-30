@@ -5,11 +5,17 @@ fastapi
 uvicorn
 
 # LangChain Framework
-# langchain 会自动安装 langchain-core 和 langchain-community
+# langchain 会自动安装 langchain-core
 langchain
 langchain-community
+langchain-openai # 新增：用于支持 OpenAI 兼容的接口，如 vLLM
+
+# LLM Providers
 dashscope
 
 # For environment variables
 python-dotenv
+
+# Logging
+loguru
 

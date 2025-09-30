@@ -2,10 +2,17 @@
 import sys
 import os
 from fastapi import FastAPI
+from loguru import logger # 导入 logger
+
 from api.models import AgentRequest, AgentResponse
 
 # 将项目根目录添加到 sys.path，以确保可以正确导入 agent 和 tools
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# --- 日志配置 ---
+# 必须在导入任何其他自定义模块之前加载日志配置
+from core.log_config import setup_logging
+setup_logging()
 
 import config.settings # 确保环境变量被加载
 from agents.building_env_agent import BuildingEnvAgent
@@ -23,7 +30,7 @@ def get_agent_instance():
     """
     tools = [sensor_reader, ac_control, light_control]
     agent = BuildingEnvAgent(tools=tools)
-    print("🚀 LangChain Agent 'BuildingEnvAgent' 已在 API 服务中初始化。")
+    logger.info("🚀 LangChain Agent 'BuildingEnvAgent' 已在 API 服务中初始化。")
     return agent
 
 # --- FastAPI 应用 ---
@@ -38,7 +45,7 @@ app = FastAPI(
 @app.on_event("startup")
 def startup_event():
     app.state.agent = get_agent_instance()
-    print("✅ API 服务已启动，Agent 准备就绪。")
+    logger.info("✅ API 服务已启动，Agent 准备就绪。")
 
 @app.post("/api/v1/agent/invoke", response_model=AgentResponse)
 async def invoke_agent(request: AgentRequest):
@@ -51,18 +58,20 @@ async def invoke_agent(request: AgentRequest):
         2. 调用 Agent 的 `run` 方法，传入用户指令和环境状态。
     - **返回**: 一个包含 `output` (Agent 的最终答复) 的 JSON 对象。
     """
-    print(f"📥 [API] 收到请求: {request.query}")
+    logger.info(f"📥 [API] 收到请求: {request.query}")
 
     # 1. 感知环境
     # 在调用 Agent 之前，先获取最新的环境快照。
+    logger.debug("正在获取当前环境状态...")
     environment_status = sensor_reader({"device_id": "all"})
+    logger.debug(f"环境状态获取完成: {environment_status}")
 
     # 2. 调用 Agent
     # 从 app.state 中获取已初始化的 Agent 实例
     agent = app.state.agent
     result = agent.run(request.query, environment_status)
 
-    print(f"📤 [API] 发送响应: {result['output']}")
+    logger.info(f"📤 [API] 发送响应: {result['output']}")
 
     # 3. 构造并返回响应
     return AgentResponse(

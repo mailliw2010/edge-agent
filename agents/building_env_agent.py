@@ -1,15 +1,20 @@
 # agents/building_env_agent.py
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_community.chat_models import ChatTongyi # 导入通义千问模型
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.agents import AgentExecutor, create_openai_tools_agent
 from typing import List, Any, Dict
 
+from core.llm_factory import create_llm_client # 导入 LLM 工厂函数
+
 # --- Agent 核心组件初始化 ---
 
-# 1. 定义系统提示 (System Prompt) - 已优化为中文
-# 这是 Agent 的“性格”和“指令手册”。它告诉 LLM 它的角色、目标、可用工具以及如何响应。
-# 针对中文环境和 Qwen 模型进行了优化。
-prompt_template = """
+# 1. 定义系统提示 (System Prompt) - 结构优化
+# 我们将原始的字符串模板分解为更结构化的消息列表。
+# 这为我们引入 MessagesPlaceholder 提供了便利，从而更稳定地处理工具调用。
+prompt = ChatPromptTemplate.from_messages(
+    [
+        (
+            "system",
+            """
 你是一个名为“智能楼宇管家”的AI Agent。
 你的核心任务是：根据用户的指令和环境的实时状态，自主地维护一个舒适、节能的建筑环境。
 
@@ -27,22 +32,20 @@ prompt_template = """
 
 # 当前环境状态
 {environment_status}
-
-# 用户最新指令
-{input}
-
-# 思考与行动历史
-{agent_scratchpad}
 """
+        ),
+        ("user", "{input}"),
+        # MessagesPlaceholder 是一个关键的占位符。
+        # AgentExecutor 会在运行时，自动将 Agent 的思考过程、工具调用和返回结果
+        # 填充到这个位置，形成完整的对话历史。
+        # 这比简单的字符串格式化更健壮，尤其对于工具调用场景。
+        MessagesPlaceholder(variable_name="agent_scratchpad"),
+    ]
+)
 
-# 2. 创建聊天提示模板
-prompt = ChatPromptTemplate.from_template(prompt_template)
-
-# 3. 初始化大语言模型 (LLM) - 更换为通义千问
-# 我们选择使用阿里的通义千问 qwen-max 模型，它在中文处理和工具调用方面表现优异。
-# temperature=0 表示我们希望模型做出确定性的、可重复的决策。
-# 注意：用户提到的 qwen3-max 在API中通常标识为 qwen-max
-llm = ChatTongyi(model="qwen-max", temperature=0)
+# 2. 初始化大语言模型 (LLM) - 通过工厂函数动态创建
+# 工厂会根据 .env 配置自动返回正确的 LLM 客户端 (ChatTongyi 或 vLLM 的 ChatOpenAI)。
+llm = create_llm_client()
 
 
 class BuildingEnvAgent:
@@ -69,8 +72,6 @@ class BuildingEnvAgent:
         # --- 创建 LangChain Agent ---
         # `create_openai_tools_agent` 是一个高级辅助函数，它将 LLM 和 Prompt 绑定在一起，
         # 并专门针对 OpenAI 的函数调用（工具调用）功能进行了优化。
-        # 这个函数返回一个 `Runnable` 对象，它是 LangChain 表达式语言 (LCEL) 的一部分，
-        # 代表了一个可以被调用的、定义好的计算步骤。
         agent = create_openai_tools_agent(llm, tools, prompt)
 
         # --- 创建 Agent 执行器 ---
@@ -94,7 +95,6 @@ class BuildingEnvAgent:
         # --- 调用 Agent 执行器 ---
         # `.invoke()` 是 LangChain `Runnable` 对象的标准执行方法。
         # 我们将用户输入和格式化后的环境状态一起传递给 Agent。
-        # AgentExecutor 会处理所有中间步骤，并最终返回一个包含最终答案的字典。
         return self.executor.invoke({
             "input": user_input,
             "environment_status": str(environment_status) # 转换为字符串以适应提示模板
