@@ -3,8 +3,13 @@ import sys
 import os
 from fastapi import FastAPI
 from loguru import logger # 导入 logger
+from dotenv import load_dotenv
 
 from api.models import AgentRequest, AgentResponse
+
+# 在导入任何自定义模块之前加载 .env 文件
+# 这样可以确保所有配置在应用启动时都已准备就绪
+load_dotenv()
 
 # 将项目根目录添加到 sys.path，以确保可以正确导入 agent 和 tools
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
