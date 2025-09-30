@@ -31,6 +31,10 @@ VLLM_API_KEY = os.getenv("VLLM_API_KEY")
 LLM_STREAMING = os.getenv("LLM_STREAMING", "False").lower() == "true"
 logger.info(f"LLM 流式响应已配置为: {LLM_STREAMING}")
 
+# --- 模拟模式配置 ---
+SIMULATION_MODE = os.getenv("SIMULATION_MODE", "false").lower() == "true"
+logger.info(f"设备模拟模式: {SIMULATION_MODE}")
+
 # --- 启动时验证 ---
 # 根据选择的 LLM 提供商，验证必要的环境变量是否已设置。
 if LLM_PROVIDER == "dashscope":

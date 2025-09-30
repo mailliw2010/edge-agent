@@ -1,7 +1,7 @@
 # api/server.py
 import sys
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from loguru import logger # 导入 logger
 from dotenv import load_dotenv
 
@@ -24,6 +24,7 @@ from agents.building_env_agent import BuildingEnvAgent
 from tools.sensor_reader import sensor_reader
 from tools.ac_control import ac_control
 from tools.light_control import light_control
+from core.reliability import ResilienceError
 
 # --- 全局 Agent 实例 ---
 # 在生产环境中，我们希望 Agent 是一个单例，在服务启动时初始化一次即可。
@@ -71,10 +72,36 @@ async def invoke_agent(request: AgentRequest):
     environment_status = sensor_reader({"device_id": "all"})
     logger.debug(f"环境状态获取完成: {environment_status}")
 
+    if (
+        isinstance(environment_status, list)
+        and environment_status
+        and isinstance(environment_status[0], dict)
+        and "error" in environment_status[0]
+    ):
+        error_message = environment_status[0]["error"]
+        logger.error("环境状态获取失败：{}", error_message)
+        raise HTTPException(
+            status_code=503,
+            detail="环境感知暂时不可用，请稍后重试。",
+        )
+
     # 2. 调用 Agent
     # 从 app.state 中获取已初始化的 Agent 实例
     agent = app.state.agent
-    result = agent.run(request.query, environment_status)
+    try:
+        result = agent.run(request.query, environment_status)
+    except ResilienceError as exc:
+        logger.error("Agent 执行在多次尝试后仍失败：{}", exc)
+        raise HTTPException(
+            status_code=503,
+            detail="Agent 服务暂时不可用，请稍后重试。",
+        ) from exc
+    except Exception as exc:
+        logger.exception("Agent 执行过程中发生未知异常。")
+        raise HTTPException(
+            status_code=500,
+            detail="Agent 服务出现未知错误。",
+        ) from exc
 
     logger.info(f"📤 [API] 发送响应: {result['output']}")
 

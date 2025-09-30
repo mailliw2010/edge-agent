@@ -2,8 +2,10 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.agents import AgentExecutor, create_openai_tools_agent
 from typing import List, Any, Dict
+import os
 
 from core.llm_factory import create_llm_client # 导入 LLM 工厂函数
+from core.reliability import run_with_resilience
 
 # --- Agent 核心组件初始化 ---
 
@@ -46,6 +48,9 @@ prompt = ChatPromptTemplate.from_messages(
 # 2. 初始化大语言模型 (LLM) - 通过工厂函数动态创建
 # 工厂会根据 .env 配置自动返回正确的 LLM 客户端 (ChatTongyi 或 vLLM 的 ChatOpenAI)。
 llm = create_llm_client()
+
+AGENT_TIMEOUT_SECONDS = float(os.getenv("AGENT_TIMEOUT_SECONDS", "30"))
+AGENT_MAX_ATTEMPTS = int(os.getenv("AGENT_MAX_ATTEMPTS", "2"))
 
 
 class BuildingEnvAgent:
@@ -95,7 +100,15 @@ class BuildingEnvAgent:
         # --- 调用 Agent 执行器 ---
         # `.invoke()` 是 LangChain `Runnable` 对象的标准执行方法。
         # 我们将用户输入和格式化后的环境状态一起传递给 Agent。
-        return self.executor.invoke({
-            "input": user_input,
-            "environment_status": str(environment_status) # 转换为字符串以适应提示模板
-        })
+        def _invoke() -> Dict:
+            return self.executor.invoke({
+                "input": user_input,
+                "environment_status": str(environment_status)  # 转换为字符串以适应提示模板
+            })
+
+        return run_with_resilience(
+            "agent_executor",
+            _invoke,
+            timeout_seconds=AGENT_TIMEOUT_SECONDS,
+            max_attempts=AGENT_MAX_ATTEMPTS,
+        )
